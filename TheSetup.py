@@ -29,7 +29,7 @@ class TheSetup:
 	This class is responsible of being thread safe handling the hardware resources."""
 	
 	def __init__(self, climate_chamber, sensirion_sensor, caen_1, caen_2, slots_df):
-		"""- slots_df: a Pandas dataframe with columns "Slot number,CAEN model name,CAEN serial number,CAEN channel number"."""
+		"""- slots_df: a Pandas dataframe with columns "Slot name,CAEN model name,CAEN serial number,CAEN channel number"."""
 		if not isinstance(climate_chamber, ClimateChamber):
 			raise TypeError(f'<climate_chamber> must be an instance of {ClimateChamber}.')
 		self._climate_chamber = climate_chamber
@@ -41,13 +41,15 @@ class TheSetup:
 				raise TypeError(f'<caen_1> and <caen_2> must be instances of {CAENDesktopHighVoltagePowerSupply}.')
 		caen_power_supplies = {caen.serial_number: caen for caen in [caen_1, caen_2]} # The keys of this dictionary are the serial numbers of each instrument.
 		
+		slots_df = slots_df.copy() # Make a copy so to don't touch the original.
+		slots_df.dropna()
 		slots_df['Slot name'] = slots_df['Slot name'].astype(str)
 		slots_df['CAEN model name'] = slots_df['CAEN model name'].astype(str)
 		slots_df['CAEN serial number'] = slots_df['CAEN serial number'].astype(str)
 		slots_df['CAEN channel number'] = slots_df['CAEN channel number'].astype(int)
 		check_integrity_of_slots_df(slots_df)
-		slots_df = slots_df.copy()
 		slots_df.set_index('Slot name', inplace=True)
+		slots_df = slots_df.loc[slots_df.index != 'nan']
 		self._caen_outputs_per_slot = {}
 		for slot_name in slots_df.index:
 			self._caen_outputs_per_slot[slot_name] = OneCAENChannel(

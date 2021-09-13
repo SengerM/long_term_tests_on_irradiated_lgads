@@ -116,12 +116,16 @@ class TheSetup:
 	
 	# Robotic source+reference system methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
+	@property
+	def slots_names(self):
+		return set(self._caen_outputs_per_slot.keys())
+	
 	def _check_slot_name(self, slot_name: str):
 		"""if the slot_name is valid, this method does nothing, otherwise
 		rises error."""
 		_validate_type(slot_name, 'slot_name', str)
-		if slot_name not in self._caen_outputs_per_slot.keys():
-			raise ValueError(f'Wrong slot name {repr(slot_name)}. Valid slot names are {set(self._caen_outputs_per_slot.keys())}.')
+		if slot_name not in self.slots_names:
+			raise ValueError(f'Wrong slot name {repr(slot_name)}. Valid slot names are {self.slots_names}.')
 
 if __name__ == '__main__':
 	import pandas

@@ -82,29 +82,27 @@ class TheSetup:
 	
 	# High voltage methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	
-	def set_bias_voltage(self, slot_name: str, volt: float):
-		"""Set the bias voltage of the specified slot."""
+	def get_CAEN_for_(self, slot_name: str):
+		"""Returns an object of type `OneCAENChannel` (see https://github.com/SengerM/CAENpy) to control the corresponding slot name."""
 		_validate_type(slot_name, 'slot_name', str)
 		self._check_slot_name(slot_name)
-		self._caen_outputs_per_slot[slot_name].V_set = float(volt)
+		return self._caen_outputs_per_slot[slot_name]
+	
+	def set_bias_voltage(self, slot_name: str, volt: float):
+		"""Set the bias voltage of the specified slot."""
+		self.get_CAEN_for_(slot_name).V_set = float(volt)
 	
 	def set_current_compliance(self, slot_name: str, ampere: float):
 		"""Set the current compliance for the specified slot."""
-		_validate_type(slot_name, 'slot_name', str)
-		self._check_slot_name(slot_name)
-		self._caen_outputs_per_slot[slot_name].current_compliance = float(ampere)
+		self.get_CAEN_for_(slot_name).current_compliance = float(ampere)
 	
 	def measure_bias_voltage(self, slot_name: str):
 		"""Returns a measurement of the bias voltage in the specified slot."""
-		_validate_type(slot_name, 'slot_name', str)
-		self._check_slot_name(slot_name)
-		return self._caen_outputs_per_slot[slot_name].V_mon
+		return self.get_CAEN_for_(slot_name).V_mon
 	
 	def measure_bias_current(self, slot_name: str):
 		"""Returns a measurement of the bias current in the specified slot."""
-		_validate_type(slot_name, 'slot_name', str)
-		self._check_slot_name(slot_name)
-		return self._caen_outputs_per_slot[slot_name].I_mon
+		return self.get_CAEN_for_(slot_name).I_mon
 	
 	# High voltage methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
@@ -130,7 +128,7 @@ class TheSetup:
 if __name__ == '__main__':
 	import pandas
 	
-	slots_df = pandas.read_excel("/home/sengerm/cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/control/slots_definition.ods", engine="odf")
+	slots_df = pandas.read_excel("/home/sengerm/cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/control/slots_definitions.ods", engine="odf")
 	caen_new = CAENDesktopHighVoltagePowerSupply(ip='130.60.165.119', timeout=10)
 	caen_old = CAENDesktopHighVoltagePowerSupply(ip='130.60.165.121', timeout=10)
 	climate_chamber = ClimateChamber(ip = '130.60.165.218', temperature_min = -20, temperature_max = 20)
@@ -145,11 +143,7 @@ if __name__ == '__main__':
 	
 	print(f'Temperature set point: {setup.temperature_set_point} °C')
 	print(f'Temperature: {setup.temperature} °C')
-	# ~ for slot_name in slots_df.index:
-		# ~ slot_name = str(slot_name)
-		# ~ print(f'Voltage in slot {slot_name}: {setup.measure_bias_voltage(slot_name)} V')
-		# ~ print(f'Bias current in slot {slot_name}: {setup.measure_bias_current(slot_name)} A')
-	
-	while True:
-		setup.set_bias_voltage(str(input('Slot number to set bias voltag? ')), float(input('Bias voltage? ')))
-		print('Changing bias voltage...')
+	print(f'Humidity: {setup.humidity} %RH')
+	for slot_name in setup.slots_names:
+		print(f'Bias voltage for slot {slot_name}: {setup.measure_bias_voltage(slot_name)} V')
+		print(f'Bias current for slot {slot_name}: {setup.measure_bias_current(slot_name)} A')

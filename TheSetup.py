@@ -60,6 +60,11 @@ class TheSetup:
 	# Climatic related methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	
 	@property
+	def climate_chamber(self):
+		"""Returns the instance of the climate chamber to be able to access its methods and properties directly."""
+		return self._climate_chamber
+	
+	@property
 	def temperature_set_point(self):
 		"""Returns the temperature set point in Celsius."""
 		return self._climate_chamber.temperature_set_point

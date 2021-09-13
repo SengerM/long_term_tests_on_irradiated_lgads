@@ -5,13 +5,11 @@ from SensirionSensor import SensirionSensor
 
 def check_integrity_of_slots_df(slots_df):
 	"""Checks that there are no errors (like duplicate outputs) in the configuration dataframe for the slots. If there are no errors, this function does nothing. If an error is found, an error is raised. The checks that this function does are very specific of my setup."""
-	if set(slots_df.columns) != {'Slot number', 'CAEN model name', 'CAEN serial number', 'CAEN channel number'}:
+	if set(slots_df.columns) != {'Slot name', 'CAEN model name', 'CAEN serial number', 'CAEN channel number'}:
 		raise ValueError(f'Wrong columns.')
-	if sorted(list(slots_df['Slot number'])) != [1,2,3,4,5,6,7,8]:
-		raise ValueError(f'Wrong slot numbers, they must be [1,2,3,4,5,6,7,8] but received {list(slots_df["Slot number"])}.')
 	if set(slots_df['CAEN model name']) != {'DT1419ET', 'DT1470ET'}:
 		raise ValueError(f'Wrong CAEN model name.')
-	if set(slots_df['CAEN serial number']) != {139, 13398}:
+	if set(slots_df['CAEN serial number']) != {'139', '13398'}:
 		raise ValueError(f'Wrong CAEN serial number.')
 	if set(slots_df['CAEN channel number']) != {0,1,2,3}:
 		raise ValueError(f'Wrong CAEN channel number.')
@@ -43,14 +41,18 @@ class TheSetup:
 				raise TypeError(f'<caen_1> and <caen_2> must be instances of {CAENDesktopHighVoltagePowerSupply}.')
 		caen_power_supplies = {caen.serial_number: caen for caen in [caen_1, caen_2]} # The keys of this dictionary are the serial numbers of each instrument.
 		
+		slots_df['Slot name'] = slots_df['Slot name'].astype(str)
+		slots_df['CAEN model name'] = slots_df['CAEN model name'].astype(str)
+		slots_df['CAEN serial number'] = slots_df['CAEN serial number'].astype(str)
+		slots_df['CAEN channel number'] = slots_df['CAEN channel number'].astype(int)
 		check_integrity_of_slots_df(slots_df)
 		slots_df = slots_df.copy()
-		slots_df.set_index('Slot number', inplace=True)
+		slots_df.set_index('Slot name', inplace=True)
 		self._caen_outputs_per_slot = {}
-		for slot_number in slots_df.index:
-			self._caen_outputs_per_slot[slot_number] = OneCAENChannel(
-				caen = caen_power_supplies[str(slots_df.loc[slot_number, 'CAEN serial number'])],
-				channel_number = slots_df.loc[slot_number, 'CAEN channel number'],
+		for slot_name in slots_df.index:
+			self._caen_outputs_per_slot[slot_name] = OneCAENChannel(
+				caen = caen_power_supplies[str(slots_df.loc[slot_name, 'CAEN serial number'])],
+				channel_number = slots_df.loc[slot_name, 'CAEN channel number'],
 			)
 	
 	# Climatic related methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
@@ -78,25 +80,29 @@ class TheSetup:
 	
 	# High voltage methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	
-	def set_bias_voltage(self, slot_number: int, volt: float):
+	def set_bias_voltage(self, slot_name: str, volt: float):
 		"""Set the bias voltage of the specified slot."""
-		_validate_type(slot_number, 'slot_number', int)
-		self._caen_outputs_per_slot[slot_number].V_set = float(volt)
+		_validate_type(slot_name, 'slot_name', str)
+		self._check_slot_name(slot_name)
+		self._caen_outputs_per_slot[slot_name].V_set = float(volt)
 	
-	def set_current_compliance(self, slot_number: int, ampere: float):
+	def set_current_compliance(self, slot_name: str, ampere: float):
 		"""Set the current compliance for the specified slot."""
-		_validate_type(slot_number, 'slot_number', int)
-		self._caen_outputs_per_slot[slot_number].current_compliance = float(ampere)
+		_validate_type(slot_name, 'slot_name', str)
+		self._check_slot_name(slot_name)
+		self._caen_outputs_per_slot[slot_name].current_compliance = float(ampere)
 	
-	def measure_bias_voltage(self, slot_number: int):
+	def measure_bias_voltage(self, slot_name: str):
 		"""Returns a measurement of the bias voltage in the specified slot."""
-		_validate_type(slot_number, 'slot_number', int)
-		return self._caen_outputs_per_slot[slot_number].V_mon
+		_validate_type(slot_name, 'slot_name', str)
+		self._check_slot_name(slot_name)
+		return self._caen_outputs_per_slot[slot_name].V_mon
 	
-	def measure_bias_current(self, slot_number: int):
+	def measure_bias_current(self, slot_name: str):
 		"""Returns a measurement of the bias current in the specified slot."""
-		_validate_type(slot_number, 'slot_number', int)
-		return self._caen_outputs_per_slot[slot_number].I_mon
+		_validate_type(slot_name, 'slot_name', str)
+		self._check_slot_name(slot_name)
+		return self._caen_outputs_per_slot[slot_name].I_mon
 	
 	# High voltage methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
@@ -107,6 +113,13 @@ class TheSetup:
 		raise NotImplementedError('Not yet implemented.')
 	
 	# Robotic source+reference system methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+	
+	def _check_slot_name(self, slot_name: str):
+		"""if the slot_name is valid, this method does nothing, otherwise
+		rises error."""
+		_validate_type(slot_name, 'slot_name', str)
+		if slot_name not in self._caen_outputs_per_slot.keys():
+			raise ValueError(f'Wrong slot name {repr(slot_name)}. Valid slot names are {set(self._caen_outputs_per_slot.keys())}.')
 
 if __name__ == '__main__':
 	import pandas
@@ -126,10 +139,11 @@ if __name__ == '__main__':
 	
 	print(f'Temperature set point: {setup.temperature_set_point} °C')
 	print(f'Temperature: {setup.temperature} °C')
-	for slot_number in [1,2,3,4,5,6,7,8]:
-		print(f'Voltage in slot {slot_number}: {setup.measure_bias_voltage(slot_number)} V')
-		print(f'Bias current in slot {slot_number}: {setup.measure_bias_current(slot_number)} A')
+	# ~ for slot_name in slots_df.index:
+		# ~ slot_name = str(slot_name)
+		# ~ print(f'Voltage in slot {slot_name}: {setup.measure_bias_voltage(slot_name)} V')
+		# ~ print(f'Bias current in slot {slot_name}: {setup.measure_bias_current(slot_name)} A')
 	
 	while True:
-		setup.set_bias_voltage(int(input('Slot number to set bias voltag? ')), int(input('Bias voltage? ')))
+		setup.set_bias_voltage(str(input('Slot number to set bias voltag? ')), float(input('Bias voltage? ')))
 		print('Changing bias voltage...')

@@ -84,7 +84,7 @@ class TheSetup:
 	def temperature_set_point(self, celsius):
 		"""Set the temperature set point in Celsius. Before doing so it checks that all the slots are unbiased if the temperature is higher than the MAX_OPERATING_TEMPERATURE, otherwise it rises an error."""
 		celsius = _cast_to_float_number(celsius, 'celsius')
-		if celsius > self.MAX_OPERATING_TEMPERATURE and any([(self.measure_bias_voltage(slot_name)**2)**.5 > self.UNBIASED_VOLTAGE_THRESHOLD for slot_name in self.slots_names]):
+		if celsius > self.MAX_OPERATING_TEMPERATURE and self._is_any_slot_biased():
 			raise RuntimeError(f'Trying to se the temperature to {celsius} °C (which is above the maximum operating temperature of {self.MAX_OPERATING_TEMPERATURE} °C) while there are devices biased with a voltage greater than the "unbiased voltage threshold" of {self.UNBIASED_VOLTAGE_THRESHOLD} V.')
 		self._climate_chamber.temperature_set_point = celsius
 	
@@ -137,6 +137,10 @@ class TheSetup:
 		"""Returns a measurement of the bias current in the specified slot."""
 		return self._get_CAEN_for_(slot_name).I_mon
 	
+	def _is_any_slot_biased(self):
+		"""Returns True if any slot is biased (i.e. voltage higher than UNBIASED_VOLTAGE_THRESHOLD), otherwise returns False."""
+		return any([(self.measure_bias_voltage(slot_name)**2)**.5 > self.UNBIASED_VOLTAGE_THRESHOLD for slot_name in self.slots_names])
+	
 	# High voltage methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
 	# Robotic source+reference system methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
@@ -180,7 +184,7 @@ if __name__ == '__main__':
 	print(f'Temperature set point: {setup.temperature_set_point} °C')
 	print(f'Temperature: {setup.temperature:.2f} °C')
 	print(f'Humidity: {setup.humidity:.2f} %RH')
-	for slot_name in setup.slots_names:
-		setup.set_bias_voltage(slot_name, 11)
+	for idx, slot_name in enumerate(setup.slots_names):
+		setup.set_bias_voltage(slot_name, 9)
 		print(f'Bias voltage for slot {slot_name}: {setup.measure_bias_voltage(slot_name):.0f} V')
 		print(f'Bias current for slot {slot_name}: {setup.measure_bias_current(slot_name)*1e-6:.2f} µA')

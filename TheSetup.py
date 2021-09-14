@@ -20,13 +20,30 @@ def _validate_type(var, var_name, typ):
 	if not isinstance(var, typ):
 		raise TypeError(f'<{var_name}> must be of type {typ}, received object of type {type(var)}.')
 
+def _cast_to_float_number(var, var_name):
+	err_msg = f'<{var_name}> must be of type {float}, received object of type {type(var)}.'
+	try:
+		float(var)
+	except:
+		raise TypeError(err_msg)
+	try:
+		len(var) # This is in case var is e.g. a numpy array.
+	except:
+		pass
+	else:
+		raise TypeError(err_msg)
+	return float(var)
+
 class TheSetup:
-	"""The purpose of this class is to abstract the whole setup and provide easy methods to control/read each variable. All technicalities regarding the handling of the individual outputs of each CAEN, climate chamber, etc. are supposed to be implemented here. The user of this class should worry about:
+	"""The purpose of this class is to abstract the whole setup and provide easy and safe methods to control/read each variable. All technicalities regarding the handling of the individual outputs of each CAEN, climate chamber, etc. are supposed to be implemented here. The user of this class should worry about:
 	- Controlling/monitoring the temperature in the climate chambers.
 	- Controlling/monitoring the bias voltage/current in each of the 8 slots.
 	- Move the robotic system with the beta source and the reference from one position to another.
 	
 	This class is responsible of being thread safe handling the hardware resources."""
+	
+	MAX_OPERATING_TEMPERATURE = -18 # °C. If the temperature is above this value, it is not possible to set a high voltage.
+	UNBIASED_VOLTAGE_THRESHOLD = 5 # V. Value of bias voltage below which to consider that this is unbiased.
 	
 	def __init__(self, climate_chamber, sensirion_sensor, caen_1, caen_2, slots_df):
 		"""- slots_df: a Pandas dataframe with columns "Slot name,CAEN model name,CAEN serial number,CAEN channel number"."""
@@ -54,15 +71,10 @@ class TheSetup:
 		for slot_name in slots_df.index:
 			self._caen_outputs_per_slot[slot_name] = OneCAENChannel(
 				caen = caen_power_supplies[str(slots_df.loc[slot_name, 'CAEN serial number'])],
-				channel_number = slots_df.loc[slot_name, 'CAEN channel number'],
+				channel_number = int(slots_df.loc[slot_name, 'CAEN channel number']),
 			)
 	
 	# Climatic related methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
-	
-	@property
-	def climate_chamber(self):
-		"""Returns the instance of the climate chamber to be able to access its methods and properties directly."""
-		return self._climate_chamber
 	
 	@property
 	def temperature_set_point(self):
@@ -70,7 +82,10 @@ class TheSetup:
 		return self._climate_chamber.temperature_set_point
 	@temperature_set_point.setter
 	def temperature_set_point(self, celsius):
-		"""Set the temperature set point in Celsius."""
+		"""Set the temperature set point in Celsius. Before doing so it checks that all the slots are unbiased if the temperature is higher than the MAX_OPERATING_TEMPERATURE, otherwise it rises an error."""
+		celsius = _cast_to_float_number(celsius, 'celsius')
+		if celsius > self.MAX_OPERATING_TEMPERATURE and any([(self.measure_bias_voltage(slot_name)**2)**.5 > self.UNBIASED_VOLTAGE_THRESHOLD for slot_name in self.slots_names]):
+			raise RuntimeError(f'Trying to se the temperature to {celsius} °C (which is above the maximum operating temperature of {self.MAX_OPERATING_TEMPERATURE} °C) while there are devices biased with a voltage greater than the "unbiased voltage threshold" of {self.UNBIASED_VOLTAGE_THRESHOLD} V.')
 		self._climate_chamber.temperature_set_point = celsius
 	
 	@property
@@ -83,31 +98,44 @@ class TheSetup:
 		"""Returns the actual value of the relative humidity in %RH units."""
 		return self._sensirion_sensor.humidity
 	
+	@property
+	def dryer(self):
+		"""Returns the status of the dryer in the climate chamber, either True or False."""
+		return self._climate_chamber.dryer
+	
+	@property
+	def compressed_air(self):
+		"""Returns the status of the compressed air in the climate chamber, either True or False."""
+		return self._climate_chamber.compressed_air
+	
 	# Climatic related methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
 	# High voltage methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	
-	def get_CAEN_for_(self, slot_name: str):
+	def _get_CAEN_for_(self, slot_name: str):
 		"""Returns an object of type `OneCAENChannel` (see https://github.com/SengerM/CAENpy) to control the corresponding slot name."""
 		_validate_type(slot_name, 'slot_name', str)
 		self._check_slot_name(slot_name)
 		return self._caen_outputs_per_slot[slot_name]
 	
 	def set_bias_voltage(self, slot_name: str, volt: float):
-		"""Set the bias voltage of the specified slot."""
-		self.get_CAEN_for_(slot_name).V_set = float(volt)
+		"""Set the bias voltage of the specified slot. Before doing so, it checks that the temperature is below the MAX_OPERATING_TEMPERATURE if the voltage is above what is considered as 0 V."""
+		volt = _cast_to_float_number(volt, 'volt')
+		if self.temperature > self.MAX_OPERATING_TEMPERATURE and volt > self.UNBIASED_VOLTAGE_THRESHOLD:
+			raise RuntimeError(f'Trying to set bias voltage for slot {slot_name} to {volt} V while the temperature is {self.temperature} °C, which is > than the maximum operating temperature of {self.MAX_OPERATING_TEMPERATURE} °C.')
+		self._get_CAEN_for_(slot_name).V_set = float(volt)
 	
 	def set_current_compliance(self, slot_name: str, ampere: float):
 		"""Set the current compliance for the specified slot."""
-		self.get_CAEN_for_(slot_name).current_compliance = float(ampere)
+		self._get_CAEN_for_(slot_name).current_compliance = float(ampere)
 	
 	def measure_bias_voltage(self, slot_name: str):
 		"""Returns a measurement of the bias voltage in the specified slot."""
-		return self.get_CAEN_for_(slot_name).V_mon
+		return self._get_CAEN_for_(slot_name).V_mon
 	
 	def measure_bias_current(self, slot_name: str):
 		"""Returns a measurement of the bias current in the specified slot."""
-		return self.get_CAEN_for_(slot_name).I_mon
+		return self._get_CAEN_for_(slot_name).I_mon
 	
 	# High voltage methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
@@ -146,9 +174,13 @@ if __name__ == '__main__':
 		slots_df = slots_df,
 	)
 	
+	setup.temperature_set_point = -20
+	print(f'Climate chamber dryer: {setup.dryer}')
+	print(f'Climate chamber compressed air: {setup.compressed_air}')
 	print(f'Temperature set point: {setup.temperature_set_point} °C')
-	print(f'Temperature: {setup.temperature} °C')
-	print(f'Humidity: {setup.humidity} %RH')
+	print(f'Temperature: {setup.temperature:.2f} °C')
+	print(f'Humidity: {setup.humidity:.2f} %RH')
 	for slot_name in setup.slots_names:
-		print(f'Bias voltage for slot {slot_name}: {setup.measure_bias_voltage(slot_name)} V')
-		print(f'Bias current for slot {slot_name}: {setup.measure_bias_current(slot_name)} A')
+		setup.set_bias_voltage(slot_name, 11)
+		print(f'Bias voltage for slot {slot_name}: {setup.measure_bias_voltage(slot_name):.0f} V')
+		print(f'Bias current for slot {slot_name}: {setup.measure_bias_current(slot_name)*1e-6:.2f} µA')

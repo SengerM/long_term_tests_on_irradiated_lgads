@@ -210,8 +210,36 @@ class TheSetup:
 			if time.time()-time_started_cooling_down > cooling_down_timeout_seconds:
 				raise TimeoutError(f'Cannot reach target temperature of {self.NORMAL_OPERATING_TEMPERATURE} °C after {cooling_down_timeout_seconds} seconds. Current temperature is {self.temperature:.2f} °C.')
 		# If we are here, everything should be ready to operate.
+		time.sleep(1)
 		if self.status != 'ready to operate':
 			raise RuntimeError(f'The status of teh setup at this point should be "ready to operate", instead it is {repr(self.status)}.')
+	
+	def stop(self, unbias_devices_timeout_seconds=60*5, warm_up_timeout_seconds=60*15):
+		_validate_type(unbias_devices_timeout_seconds, 'unbias_devices_timeout_seconds', int)
+		_validate_type(warm_up_timeout_seconds, 'warm_up_timeout_seconds', int)
+		# ~ if self.status != 'ready to operate':
+			# ~ raise RuntimeError(f'Before calling the `stop` method the setup must be in "ready to operate" status, currently it is in {repr(self.status)} status.')
+		# Set all the bias voltages to zero ---
+		for slot_name in self.slots_names:
+			self.set_bias_voltage(slot_name, 0)
+		time_started_unbiasing = time.time()
+		while self._is_any_slot_biased():
+			time.sleep(11)
+			if time.time()-time_started_unbiasing > unbias_devices_timeout_seconds:
+				raise TimeoutError(f'I set the bias voltage of all the devices to 0 V and after {unbias_devices_timeout_seconds} seconds some of them are still biased...')
+		# If we are here is because all the devices are already unbiased.
+		self.temperature_set_point = 20 # Set room temperature.
+		time_warm_up_started = time.time()
+		while self.temperature < 18:
+			time.sleep(11)
+			if time.time()-time_warm_up_started > warm_up_timeout_seconds:
+				raise TimeoutError(f'I started to warm up the setup {warm_up_timeout_seconds} seconds ago but it still does not reach room temperature. Current temperature is {self.temperature:.2f} °C.')
+		# If we are here, the setup is already at room temperature.
+		self._climate_chamber.stop()
+		time.sleep(1)
+		# If we are here, it should be safe to open the climate chamber.
+		if self.status != 'not running':
+			raise RuntimeError(f'The status of teh setup at this point should be "not running", instead it is {repr(self.status)}.')
 	
 	# Setup state methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
@@ -255,9 +283,9 @@ if __name__ == '__main__':
 		print(f'Bias current for slot {slot_name}: {setup.measure_bias_current(slot_name)*1e-6:.2f} µA')
 	print(f'Setup status is "{setup.status}"')
 	
-	print(f'Starting the setup...')
-	setup.start()
-	print(f'Setup has started!')
+	print(f'Stopping the setup...')
+	setup.stop()
+	print(f'Setup is ready to open!')
 	
 	print(f'Setup status is "{setup.status}"')
 	print(f'Climate chamber dryer: {setup.dryer}')

@@ -73,7 +73,7 @@ class TheSetup:
 				caen = caen_power_supplies[str(slots_df.loc[slot_name, 'CAEN serial number'])],
 				channel_number = int(slots_df.loc[slot_name, 'CAEN channel number']),
 			)
-	
+		
 	# Climatic related methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 	
 	@property
@@ -151,6 +151,28 @@ class TheSetup:
 	
 	# Robotic source+reference system methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
 	
+	# Setup state methods ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+	
+	@property
+	def status(self):
+		"""Returns the status of the system based on the value of different variables. The status is either "error", "ready to operate", "cooling down" and "warm"."""
+		ERROR_STATUS = 'error'
+		if self.temperature_set_point < self.MAX_OPERATING_TEMPERATURE:
+			if self.temperature < self.MAX_OPERATING_TEMPERATURE:
+				return 'ready to operate'
+			else: # if temperature > operating temperature
+				if not self._is_any_slot_biased(): # if all unbiased
+					return 'cooling down'
+				else:
+					return ERROR_STATUS
+		else: # if temperature set point > operating temperature
+			if self._is_any_slot_biased():
+				return ERROR_STATUS
+			else: # if all unbiased
+				return 'warm'
+	
+	# Setup state methods ↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑↑
+	
 	@property
 	def slots_names(self):
 		return set(self._caen_outputs_per_slot.keys())
@@ -178,13 +200,16 @@ if __name__ == '__main__':
 		slots_df = slots_df,
 	)
 	
+	print(f'Setup status is "{setup.status}"')
 	setup.temperature_set_point = -20
+	print(f'Setup status is "{setup.status}"')
 	print(f'Climate chamber dryer: {setup.dryer}')
 	print(f'Climate chamber compressed air: {setup.compressed_air}')
 	print(f'Temperature set point: {setup.temperature_set_point} °C')
 	print(f'Temperature: {setup.temperature:.2f} °C')
 	print(f'Humidity: {setup.humidity:.2f} %RH')
 	for idx, slot_name in enumerate(setup.slots_names):
-		setup.set_bias_voltage(slot_name, 9)
+		setup.set_bias_voltage(slot_name, 0)
 		print(f'Bias voltage for slot {slot_name}: {setup.measure_bias_voltage(slot_name):.0f} V')
 		print(f'Bias current for slot {slot_name}: {setup.measure_bias_current(slot_name)*1e-6:.2f} µA')
+	print(f'Setup status is "{setup.status}"')

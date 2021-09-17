@@ -1,7 +1,7 @@
 import pandas
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import grafica
+import grafica # https://github.com/SengerM/grafica
 from pathlib import Path
 
 TIME_FORMATS = {'%Y-%m-%d', '%Y-%m-%d-%H', '%Y-%m-%d-%H:%M'}

@@ -142,6 +142,22 @@ class TheSetup:
 		"""Returns a measurement of the bias current in the specified slot."""
 		return self._get_CAEN_for_(slot_name).I_mon
 	
+	def CAEN_status_byte(self, slot_name: str):
+		"""Returns the value of the status byte of the CAEN output for the corresponding slot."""
+		return self._get_CAEN_for_(slot_name).status_byte
+	
+	def slot_output(self, slot_name: str, status: str):
+		"""If <status> is 'on', the output is turned on; if it is 'off' the output is turned off."""
+		if status not in {'on','off'}:
+			raise ValueError(f'<status> must be either "on" or "off", received {repr(status)}.')
+		self._get_CAEN_for_(slot_name).output = status
+	
+	def set_ramp_speed(self, slot_name: str, voltage_ramp_speed_volts_per_second: float):
+		"""Set the ramp speed (both ramp-up and ramp-down) in Volt/second for the given slot."""
+		voltage_ramp_speed_volts_per_second = _cast_to_float_number(voltage_ramp_speed_volts_per_second, 'voltage_ramp_speed_volts_per_second')
+		for ramp_parameter in {'RUP','RDW'}:
+			self._get_CAEN_for_(slot_name).set(PAR=ramp_parameter, VAL=voltage_ramp_speed_volts_per_second)
+	
 	def _is_any_slot_biased(self):
 		"""Returns True if any slot is biased (i.e. voltage higher than UNBIASED_VOLTAGE_THRESHOLD), otherwise returns False."""
 		return any([(self.measure_bias_voltage(slot_name)**2)**.5 > self.UNBIASED_VOLTAGE_THRESHOLD for slot_name in self.slots_names])
@@ -215,6 +231,7 @@ class TheSetup:
 			raise RuntimeError(f'The status of teh setup at this point should be "ready to operate", instead it is {repr(self.status)}.')
 	
 	def stop(self, unbias_devices_timeout_seconds=60*5, warm_up_timeout_seconds=60*15):
+		"""Performs the routine to stop the setup assuming it is "normally operating" when this method us called."""
 		_validate_type(unbias_devices_timeout_seconds, 'unbias_devices_timeout_seconds', int)
 		_validate_type(warm_up_timeout_seconds, 'warm_up_timeout_seconds', int)
 		# ~ if self.status != 'ready to operate':
@@ -283,9 +300,9 @@ if __name__ == '__main__':
 		print(f'Bias current for slot {slot_name}: {setup.measure_bias_current(slot_name)*1e-6:.2f} µA')
 	print(f'Setup status is "{setup.status}"')
 	
-	print(f'Stopping the setup...')
-	setup.stop()
-	print(f'Setup is ready to open!')
+	print(f'Stargint the setup...')
+	setup.start()
+	print(f'Setup is operating!')
 	
 	print(f'Setup status is "{setup.status}"')
 	print(f'Climate chamber dryer: {setup.dryer}')

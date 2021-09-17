@@ -156,6 +156,9 @@ class LongTermSetupDaemon:
 					self.the_setup.start()
 				elif what_to_do == 'stop test' and self.the_setup.status != 'not running':
 					self.the_setup.stop()
+					msg = f'Setup has been stopped, it is safe to open. ✅'
+					self.telegram_reporter.send_message(msg)
+					print(msg)
 				elif what_to_do == 'undefined':
 					self.telegram_reporter.send_message(f'I dont konw what to do, please check the file {self._daemon_control_dir_path/Path("setup.WHAT_TO_DO")}.')
 		
@@ -185,10 +188,10 @@ class LongTermSetupDaemon:
 			'temperature_monitoring_thread': threading.Thread(target = temperature_monitoring_thread_function, daemon = True),
 		}
 		try: # All the execution must be inside this try statement, so the Telegram reporter will report in case of failure.
-			print(f'Starting daemon...')
 			for name,thread in threads.items():
 				thread.name = name
 				thread.start()
+			print(f'Daemon has started!')
 			while all([t.is_alive() for t in list(threads.values())]): # If any thread dies due to some error, I want to stop everything.
 				sleep(THREADS_SLEEP_TIME)
 		except Exception as e:

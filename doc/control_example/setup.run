@@ -1,0 +1,6 @@
+The name of this file controls whether the setup is running or not.
+
+- setup.run: Put this name to make the setup run.
+- setup.stop: Put this name to stop the setup. Before opening wait until the daemon tells you it is safe to open.
+
+Note that all the variables will continue to be logged stopping the setup in this way.

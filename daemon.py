@@ -9,6 +9,7 @@ from importlib import reload
 from data_processing_bureaucrat.Bureaucrat import TelegramReportingInformation # Here I store privately the token of my Telegram bot.
 from progressreporting.TelegramProgressReporter import TelegramReporter # https://github.com/SengerM/progressreporting
 from TheSetup import TheSetup
+from plot_standby_logged_data import script_core as plot_standby_logged_data
 
 THREADS_SLEEP_TIME = 1
 IV_CURVES_LOG_SUBDIR = 'IV_curves'
@@ -179,6 +180,24 @@ class LongTermSetupDaemon:
 						warnings.warn(msg)
 				sleep(THREADS_SLEEP_TIME)
 		
+		def plot_standby_data_thread_function():
+			"""This thread just makes the plot periodically."""
+			last_plot_made_datetime = datetime.datetime(year=1999, month=1, day=1) # Just initializing this.
+			while self._keep_running:
+				sleep(THREADS_SLEEP_TIME)
+				if (datetime.datetime.now() - last_plot_made_datetime).seconds > 60:
+					try:
+						with warnings.catch_warnings():
+							warnings.simplefilter("ignore")
+							plot_standby_logged_data(
+								From = datetime.datetime.now() - datetime.timedelta(days = 1),
+								To = datetime.datetime.now(),
+							)
+						last_plot_made_datetime = datetime.datetime.now()
+					except Exception as e:
+						warnings.warn(f'Cannot plot logged data, reason: {e}.')
+				
+		
 		threads = {
 			'update_devices_standby_conditions_thread': threading.Thread(target = update_devices_standby_conditions_thread_function, daemon = True),
 			'update_chamber_temperature_thread': threading.Thread(target = update_chamber_temperature_thread_function, daemon = True),
@@ -186,12 +205,15 @@ class LongTermSetupDaemon:
 			'log_climatic_data_thread': threading.Thread(target = log_climatic_data_thread_function, daemon = True),
 			'start_stop_test_thread': threading.Thread(target = start_stop_test_thread_function, daemon = True),
 			'temperature_monitoring_thread': threading.Thread(target = temperature_monitoring_thread_function, daemon = True),
+			'plot_standby_data_thread': threading.Thread(target = plot_standby_data_thread_function, daemon = True),
 		}
 		try: # All the execution must be inside this try statement, so the Telegram reporter will report in case of failure.
 			for name,thread in threads.items():
 				thread.name = name
 				thread.start()
-			print(f'Daemon has started!')
+			msg = f'Daemon has started! 😈 🤘'
+			print(msg)
+			self.telegram_reporter.send_message(msg)
 			while all([t.is_alive() for t in list(threads.values())]): # If any thread dies due to some error, I want to stop everything.
 				sleep(THREADS_SLEEP_TIME)
 		except Exception as e:

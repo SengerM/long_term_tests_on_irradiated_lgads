@@ -185,7 +185,7 @@ class LongTermSetupDaemon:
 			last_plot_made_datetime = datetime.datetime(year=1999, month=1, day=1) # Just initializing this.
 			while self._keep_running:
 				sleep(THREADS_SLEEP_TIME)
-				if (datetime.datetime.now() - last_plot_made_datetime).seconds > 60:
+				if (datetime.datetime.now() - last_plot_made_datetime).seconds > 60*5:
 					try:
 						with warnings.catch_warnings():
 							warnings.simplefilter("ignore")
@@ -197,7 +197,6 @@ class LongTermSetupDaemon:
 					except Exception as e:
 						warnings.warn(f'Cannot plot logged data, reason: {e}.')
 				
-		
 		threads = {
 			'update_devices_standby_conditions_thread': threading.Thread(target = update_devices_standby_conditions_thread_function, daemon = True),
 			'update_chamber_temperature_thread': threading.Thread(target = update_chamber_temperature_thread_function, daemon = True),

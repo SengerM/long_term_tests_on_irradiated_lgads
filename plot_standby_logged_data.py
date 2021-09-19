@@ -18,7 +18,7 @@ COLORS = [
 	'#44e632',
 ]
 
-def script_core(From, To, max_points_per_device=None):
+def script_core(From, To, ofname, max_points_per_device=None):
 	data_df = pandas.read_csv('~/cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/log/standby_IV_log.csv')
 	data_df['When'] = pandas.to_datetime(data_df['When'])
 	data_df['Voltage (V)'] = (data_df['Voltage (V)']**2)**.5
@@ -75,7 +75,7 @@ def script_core(From, To, max_points_per_device=None):
 				col = 1,
 			)
 			plotly_figure['data'][-1]['marker']['color'] = COLORS[i]
-	grafica.save_unsaved(mkdir=Path.home()/Path('cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/log'))
+	grafica_figure.save(str(Path.home()/Path('cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/log')/Path(ofname)))
 
 ########################################################################
 
@@ -134,4 +134,8 @@ if __name__ == '__main__':
 	From = dates_from_to['From']
 	To = dates_from_to['To']
 	
-	script_core(From, To, args.max_points)
+	script_core(
+		From, 
+		To, 
+		max_points_per_device = args.max_points, 
+		ofname = 'logged_data')

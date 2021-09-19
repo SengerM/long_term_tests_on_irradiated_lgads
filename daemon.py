@@ -182,20 +182,30 @@ class LongTermSetupDaemon:
 		
 		def plot_standby_data_thread_function():
 			"""This thread just makes the plot periodically."""
-			last_plot_made_datetime = datetime.datetime(year=1999, month=1, day=1) # Just initializing this.
+			last_24hour_plot_made_datetime = datetime.datetime(year=1999, month=1, day=1) # Just initializing this.
+			last_weekly_plot_made_datetime = last_24hour_plot_made_datetime # Just initializing...
 			while self._keep_running:
 				sleep(THREADS_SLEEP_TIME)
-				if (datetime.datetime.now() - last_plot_made_datetime).seconds > 60*5:
-					try:
-						with warnings.catch_warnings():
-							warnings.simplefilter("ignore")
+				try:
+					with warnings.catch_warnings():
+						warnings.simplefilter("ignore")
+						if (datetime.datetime.now() - last_24hour_plot_made_datetime).seconds > 60*5:
 							plot_standby_logged_data(
 								From = datetime.datetime.now() - datetime.timedelta(days = 1),
 								To = datetime.datetime.now(),
+								ofname = str(self._log_dir_path/Path('last_24_hours'))
 							)
-						last_plot_made_datetime = datetime.datetime.now()
-					except Exception as e:
-						warnings.warn(f'Cannot plot logged data, reason: {e}.')
+						last_24hour_plot_made_datetime = datetime.datetime.now()
+						
+						if (datetime.datetime.now() - last_weekly_plot_made_datetime).days > 1:
+							plot_standby_logged_data(
+								From = datetime.datetime.now() - datetime.timedelta(days = 7),
+								To = datetime.datetime.now(),
+								ofname = str(self._log_dir_path/Path('last_7_days'))
+							)
+						last_weekly_plot_made_datetime = datetime.datetime.now()
+				except Exception as e:
+					warnings.warn(f'Cannot plot logged data, reason: {e}.')
 				
 		threads = {
 			'update_devices_standby_conditions_thread': threading.Thread(target = update_devices_standby_conditions_thread_function, daemon = True),

@@ -195,7 +195,7 @@ class LongTermSetupDaemon:
 								To = datetime.datetime.now(),
 								ofname = str(self._log_dir_path/Path('last_24_hours'))
 							)
-						last_24hour_plot_made_datetime = datetime.datetime.now()
+							last_24hour_plot_made_datetime = datetime.datetime.now()
 						
 						if (datetime.datetime.now() - last_weekly_plot_made_datetime).days > 1:
 							plot_standby_logged_data(
@@ -203,7 +203,7 @@ class LongTermSetupDaemon:
 								To = datetime.datetime.now(),
 								ofname = str(self._log_dir_path/Path('last_7_days'))
 							)
-						last_weekly_plot_made_datetime = datetime.datetime.now()
+							last_weekly_plot_made_datetime = datetime.datetime.now()
 				except Exception as e:
 					warnings.warn(f'Cannot plot logged data, reason: {e}.')
 				

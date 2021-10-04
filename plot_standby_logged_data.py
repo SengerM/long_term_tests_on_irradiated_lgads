@@ -19,12 +19,12 @@ COLORS = [
 ]
 
 def script_core(From, To, ofname, max_points_per_device=None):
-	data_df = pandas.read_csv('~/cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/log/standby_IV_log.csv')
+	data_df = pandas.read_csv('/home/sengerm/cernbox/projects/LGAD_stability/daemon/log/standby_IV_log.csv')
 	data_df['When'] = pandas.to_datetime(data_df['When'])
 	data_df['Voltage (V)'] = (data_df['Voltage (V)']**2)**.5
 
 	devices_df = pandas.read_excel(
-		'~/cernbox/UZH devices/EPR 2021/EPR 2021 from Torino.xlsx',
+		'/home/sengerm/cernbox/projects/LGAD_stability/doc/LGAD_stability_devices.xlsx',
 		sheet_name = 'FBK',
 	).set_index('#')
 

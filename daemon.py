@@ -189,7 +189,7 @@ class LongTermSetupDaemon:
 				try:
 					with warnings.catch_warnings():
 						warnings.simplefilter("ignore")
-						if (datetime.datetime.now() - last_24hour_plot_made_datetime).seconds > 60*5:
+						if (datetime.datetime.now() - last_24hour_plot_made_datetime).seconds > 33:
 							plot_standby_logged_data(
 								From = datetime.datetime.now() - datetime.timedelta(days = 1),
 								To = datetime.datetime.now(),
@@ -197,7 +197,7 @@ class LongTermSetupDaemon:
 							)
 							last_24hour_plot_made_datetime = datetime.datetime.now()
 						
-						if (datetime.datetime.now() - last_weekly_plot_made_datetime).days > 1:
+						if (datetime.datetime.now() - last_weekly_plot_made_datetime).days > 0:
 							plot_standby_logged_data(
 								From = datetime.datetime.now() - datetime.timedelta(days = 7),
 								To = datetime.datetime.now(),
@@ -279,13 +279,13 @@ if __name__ == '__main__':
 		sensirion_sensor = sensirion_sensor, 
 		caen_1 = caen_old, 
 		caen_2 = caen_new, 
-		slots_df = pandas.read_excel("/home/sengerm/cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/control/slots_definitions.ods", engine="odf"),
+		slots_df = pandas.read_excel('/home/sengerm/cernbox/projects/LGAD_stability/daemon/control/slots_definitions.ods', engine="odf"),
 	)
 	
 	daemon = LongTermSetupDaemon(
 		the_setup = setup,
-		log_data_directory = '/home/sengerm/cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/log',
-		daemon_control_directory = '/home/sengerm/cernbox/measurements_data/LGAD/EPR2021_LGAD_long_term_test/daemon/control',
+		log_data_directory = '/home/sengerm/cernbox/projects/LGAD_stability/daemon/log',
+		daemon_control_directory = '/home/sengerm/cernbox/projects/LGAD_stability/daemon/control',
 	)
 	
 	print(f'Running daemon...')
